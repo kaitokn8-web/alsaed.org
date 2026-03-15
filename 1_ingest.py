@@ -2,7 +2,7 @@ import os
 import fitz
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_core.documents import Document
 
 BOOK_NAMES = {
@@ -132,8 +132,9 @@ def build():
     print(f"\n✂ تم تقطيع النصوص إلى {len(chunks)} جزء")
 
     print("\n⏳ جاري بناء قاعدة البيانات...")
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001",
+        google_api_key=os.getenv("GOOGLE_API_KEY")
     )
     Chroma.from_documents(
         documents=chunks,

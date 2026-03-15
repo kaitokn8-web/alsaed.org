@@ -9,3 +9,4 @@ chromadb
 python-dotenv
 pymupdf
 python-docx
+langchain-google-genai
