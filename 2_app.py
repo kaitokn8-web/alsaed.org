@@ -214,11 +214,7 @@ st.markdown("""
 retriever, db = load_retriever()
 llm = load_llm()
 
-if db:
-    all_sources = db.get()['metadatas']
-    books_count = len(set([m['book'] for m in all_sources if m and 'book' in m]))
-else:
-    books_count = 0
+books_count = len([f for f in os.listdir("books") if f.endswith((".pdf", ".docx", ".doc"))]) if os.path.exists("books") else 0
 chunks_count = len(db.get()['ids']) if db else 0
 
 st.markdown(f"""
