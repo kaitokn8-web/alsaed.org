@@ -8,12 +8,14 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 load_dotenv()
 
+# ══════════════════════════════════════════
+#  إعداد الصفحة
+# ══════════════════════════════════════════
 st.set_page_config(
-    page_title="السَّاعِدُ العِلْمِيُّ",
+    page_title="السَّاعِدُ العِلْمِيُّ",
     page_icon="🕌",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -22,137 +24,249 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap');
+
+/* ── متغيرات اللون — Light ── */
+:root {
+    --bg-main:       #f4f7f5;
+    --bg-card:       #ffffff;
+    --bg-soft:       #f1f8f4;
+    --border:        #d4e8db;
+    --border-soft:   #e8f5e9;
+    --green-dark:    #1a3c2e;
+    --green-mid:     #2d6a4f;
+    --green-light:   #a8d5b5;
+    --gold:          #c9a227;
+    --text-main:     #1a1a1a;
+    --text-muted:    #5a6e62;
+    --text-hint:     #8fa897;
+    --shadow:        rgba(26,60,46,0.08);
+    --answer-border: #2d6a4f;
+}
+
+/* ── متغيرات اللون — Dark ── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-main:       #0d1a12;
+        --bg-card:       #132019;
+        --bg-soft:       #1a2e20;
+        --border:        #2a4a35;
+        --border-soft:   #1e3828;
+        --green-dark:    #a8d5b5;
+        --green-mid:     #6bbf8a;
+        --green-light:   #4a7a5a;
+        --gold:          #e8bb3a;
+        --text-main:     #e8f0eb;
+        --text-muted:    #8ab89a;
+        --text-hint:     #5a7a65;
+        --shadow:        rgba(0,0,0,0.3);
+        --answer-border: #4a9a6a;
+    }
+    body, .stApp { background-color: var(--bg-main) !important; }
+}
+
+/* ── أساسيات ── */
 * { font-family: 'Tajawal', sans-serif !important; }
-body, .stApp { direction: rtl; background: #f8f9fa; }
+body, .stApp {
+    direction: rtl;
+    background: var(--bg-main);
+    color: var(--text-main);
+}
+.block-container { padding-top: 0 !important; margin-top: 0 !important; }
+#MainMenu, footer, header { visibility: hidden; }
+
+/* ── الهيدر ── */
 .header {
-    background: linear-gradient(135deg, #1a3c2e 0%, #2d6a4f 100%);
-    padding: 20px 40px; border-radius: 0 0 20px 20px;
-    margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    padding: 22px 40px;
+    border-radius: 0 0 24px 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 24px var(--shadow);
     text-align: center;
 }
-.header-title { color: #f0c040; font-size: 2.2rem; font-weight: 700; margin: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-.header-sub { color: #a8d5b5; font-size: 1rem; margin-top: 6px; }
+.header-title {
+    color: var(--gold);
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 1px;
+}
+.header-sub { color: var(--green-light); font-size: 0.95rem; margin-top: 6px; opacity: 0.9; }
+
+/* ── بطاقة الترحيب ── */
 .hero {
-    background: white; border-radius: 16px; padding: 30px 40px;
-    text-align: center; margin-bottom: 24px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #e8f5e9;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 28px 36px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 16px var(--shadow);
+    border: 1px solid var(--border-soft);
 }
-.hero-title { color: #1a3c2e; font-size: 1.6rem; font-weight: 700; margin-bottom: 10px; }
-.hero-desc { color: #555; font-size: 1rem; line-height: 1.8; max-width: 700px; margin: 0 auto; }
+.hero-title { color: var(--green-dark); font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+.hero-desc  { color: var(--text-muted); font-size: 0.98rem; line-height: 1.9; max-width: 680px; margin: 0 auto; }
+
+/* ── إحصائيات ── */
+.stats-row { display: flex; gap: 14px; margin-bottom: 22px; justify-content: center; }
+.stat-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px 22px;
+    text-align: center;
+    box-shadow: 0 2px 10px var(--shadow);
+    border: 1px solid var(--border-soft);
+    flex: 1;
+    transition: transform 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-number { color: var(--green-mid); font-size: 1.6rem; font-weight: 700; }
+.stat-label  { color: var(--text-hint); font-size: 0.8rem; margin-top: 3px; }
+
+/* ── عناوين الأقسام ── */
+.section-title {
+    color: var(--green-dark);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 18px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-soft);
+    direction: rtl;
+    text-align: right;
+}
+
+/* ── صندوق الإجابة ── */
 .answer-box {
-    direction: rtl !important; text-align: right !important;
-    background: white; border-radius: 16px; padding: 28px 32px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-right: 5px solid #2d6a4f;
-    margin-bottom: 20px; line-height: 2; color: #222 !important; font-size: 1.05rem;
+    direction: rtl !important;
+    text-align: right !important;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 2px 14px var(--shadow);
+    border-right: 5px solid var(--answer-border);
+    margin-bottom: 20px;
+    line-height: 2.1;
+    color: var(--text-main) !important;
+    font-size: 1.05rem;
 }
+
+/* ── الأزرار ── */
 .stButton button {
-    background: #f1f8f4 !important; color: #1a3c2e !important;
-    border: 1px solid #a8d5b5 !important; border-radius: 10px !important;
-    font-family: 'Tajawal', sans-serif !important; font-size: 0.9rem !important;
-    transition: all 0.2s !important; width: 100% !important;
+    background: var(--bg-soft) !important;
+    color: var(--green-dark) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    font-family: 'Tajawal', sans-serif !important;
+    font-size: 0.88rem !important;
+    transition: all 0.2s !important;
+    width: 100% !important;
+    padding: 8px 12px !important;
 }
 .stButton button:hover {
-    background: #2d6a4f !important; color: white !important;
-    border-color: #2d6a4f !important; transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(45,106,79,0.3) !important;
+    background: var(--green-mid) !important;
+    color: #fff !important;
+    border-color: var(--green-mid) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(45,106,79,0.3) !important;
 }
-textarea, input {
-    direction: rtl !important; text-align: right !important;
-    font-family: 'Tajawal', sans-serif !important; font-size: 1rem !important;
-    border-radius: 12px !important; border: 2px solid #e8f5e9 !important;
+
+/* ── حقل الإدخال ── */
+textarea, input[type="text"] {
+    direction: rtl !important;
+    text-align: right !important;
+    font-family: 'Tajawal', sans-serif !important;
+    font-size: 1rem !important;
+    border-radius: 12px !important;
+    border: 2px solid var(--border-soft) !important;
+    background: var(--bg-card) !important;
+    color: var(--text-main) !important;
 }
-.stats-row { display: flex; gap: 16px; margin-bottom: 24px; justify-content: center; }
-.stat-card {
-    background: white; border-radius: 12px; padding: 16px 24px;
-    text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    border: 1px solid #e8f5e9; flex: 1;
-}
-.stat-number { color: #2d6a4f; font-size: 1.5rem; font-weight: 700; }
-.stat-label { color: #777; font-size: 0.82rem; margin-top: 4px; }
-.section-title {
-    color: #1a3c2e; font-size: 1.1rem; font-weight: 700;
-    margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #e8f5e9;
-    direction: rtl !important; text-align: right !important;
-}
-.streamlit-expanderHeader {
-    background: #f1f8f4 !important; color: #1a3c2e !important;
-    border-radius: 10px !important; border: 1px solid #a8d5b5 !important;
-    font-family: 'Tajawal', sans-serif !important; font-weight: 700 !important;
-}
-.streamlit-expanderHeader:hover { background: #e8f5e9 !important; }
-.watermark {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    color: rgba(45,106,79,0.15);
-    font-size: 0.75rem;
-    font-family: Tajawal, sans-serif;
-            pointer-events: none;
-            z-index: 1000;
-}
-.stSpinner p {
-        color: #1a3c2e !important;
-        font-family: 'Tajawal', sans-serif !important;
-}
-.streamlit-expanderHeader p {
-    color: #1a3c2e !important;
-}
+
+/* ── Expander المصادر ── */
 [data-testid="stExpander"] {
-    background: #f1f8f4 !important;
-    border: 1px solid #a8d5b5 !important;
+    background: var(--bg-soft) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 10px !important;
+    margin-bottom: 8px !important;
 }
-[data-testid="stExpanderToggleIcon"] {
-    color: #1a3c2e !important;
-}
-[data-testid="stExpander"] summary {
-    color: #1a3c2e !important;
+[data-testid="stExpander"] summary,
+.streamlit-expanderHeader p {
+    color: var(--green-dark) !important;
     font-family: 'Tajawal', sans-serif !important;
     font-weight: 700 !important;
+    font-size: 0.95rem !important;
 }
-.block-container {
-    padding-top: 0 !important;
-    margin-top: 0 !important;
-}                
-#MainMenu, footer, header { visibility: hidden; }
+[data-testid="stExpanderToggleIcon"] { color: var(--green-dark) !important; }
+
+/* ── المحتوى داخل المصادر ── */
+.source-content {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.93rem;
+    line-height: 2;
+    color: var(--text-main);
+    padding: 6px 4px;
+}
+.source-book-name {
+    color: var(--green-mid);
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.source-page-badge {
+    display: inline-block;
+    background: var(--green-mid);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* ── Spinner ── */
+.stSpinner p { color: var(--green-dark) !important; font-family: 'Tajawal', sans-serif !important; }
+
+/* ── تنبيه عدم وجود قاعدة بيانات ── */
+.stAlert { border-radius: 12px !important; direction: rtl !important; }
 </style>
 """, unsafe_allow_html=True)
 
-PROMPT_TEMPLATE = """أنت نظام ذكاء اصطناعي متخصص في علم العقيدة الإسلامية.
 
-مهمتك تحليل الأسئلة العقدية وشرحها وفق منهج أهل السنة والجماعة على فهم السلف الصالح.
+# ══════════════════════════════════════════
+#  الـ Prompt
+# ══════════════════════════════════════════
+PROMPT_TEMPLATE = """أنت "السَّاعِدُ العِلْمِيُّ"، نظام ذكاء اصطناعي متخصص حصراً في علم العقيدة الإسلامية وفق منهج أهل السنة والجماعة على فهم السلف الصالح.
 
-مرجعيتك:
-- القرآن الكريم
-- السنة النبوية الصحيحة
-- أقوال الصحابة والتابعين
-- كتب أئمة أهل السنة والجماعة
-
-- النصوص التالية من المصادر المعتمدة:
-──────────────────────
+══ النصوص المرجعية المتاحة ══
 {context}
-──────────────────────
+══════════════════════════════
 
 السؤال: {question}
 
-منهج الإجابة — اتبع هذا الترتيب:
-١. تعريف المسألة
-٢. بيان أصلها في القرآن والسنة إن وجد
-٣. أقوال علماء أهل السنة مع ذكر المصدر: [الكتاب، ص.رقم]
+══ منهج الإجابة (اتبع هذا الترتيب) ══
+١. تعريف المسألة بإيجاز
+٢. الأصل في القرآن والسنة مع ذكر النص إن أمكن
+٣. أقوال علماء أهل السنة مقتبسةً من النصوص أعلاه، وكل قول يتبعه مباشرةً: [اسم الكتاب، ص.رقم]
 ٤. شرح المسألة وبيان معناها
-٥. ذكر الأقوال المخالفة إن وجدت مع موقف أهل السنة منها
-٦. خلاصة تلخص مذهب أهل السنة
+٥. ذكر الأقوال المخالفة إن وُجدت مع موقف أهل السنة منها [مع مصدر من النصوص أعلاه]
+٦. خلاصة تلخّص مذهب أهل السنة
 
-قواعد ملزمة:
-- لا تخترع أقوالاً غير موجودة في المصادر
-- لا تنسب كلاماً لعالم دون مصدر، وكل قول تنقله من النصوص أعلاه يجب أن يكون بعده مباشرة: [اسم الكتاب، ص.رقم]
-- إذا لم تجد المصدر في النصوص المتاحة فلا تذكر القول
-- لا تخلط بين منهج أهل السنة والمذاهب الكلامية
-- إذا لم تجد معلومات كافية فصرّح بذلك
-- اكتب بلغة علمية واضحة بالعربية الفصحى
+══ قواعد إلزامية لا استثناء فيها ══
+• كل معلومة أو قول تنقله من النصوص المتاحة يجب أن يعقبه مباشرةً: [اسم الكتاب، ص.رقم] — هذا ليس اختيارياً
+• لا تذكر قولاً لعالم إلا إذا كان موجوداً في النصوص أعلاه
+• لا تخترع مصادر أو صفحات
+• إذا لم تجد في النصوص ما يكفي لتوثيق نقطة معينة، صرّح: "لم يرد في المصادر المتاحة نص صريح على ذلك"
+• لا تخلط بين منهج أهل السنة والمذاهب الكلامية (الأشاعرة، المعتزلة...)
+• اكتب بالعربية الفصحى بأسلوب علمي رصين
 """
 
-@st.cache_resource
+
+# ══════════════════════════════════════════
+#  تحميل النماذج (cached)
+# ══════════════════════════════════════════
+@st.cache_resource(show_spinner=False)
 def load_retriever():
     if not os.path.exists("vectorstore"):
         return None, None
@@ -162,70 +276,89 @@ def load_retriever():
     db = Chroma(persist_directory="vectorstore", embedding_function=embeddings)
     retriever = db.as_retriever(
         search_type="mmr",
-        search_kwargs={
-            "k": 12,
-            "fetch_k": 50,
-            "lambda_mult": 0.7
-        }
+        search_kwargs={"k": 12, "fetch_k": 50, "lambda_mult": 0.7}
     )
     return retriever, db
-@st.cache_resource
+
+
+@st.cache_resource(show_spinner=False)
 def load_llm():
     return ChatAnthropic(
         model="claude-sonnet-4-20250514",
         api_key=os.getenv("ANTHROPIC_API_KEY"),
-        max_tokens=2000
+        max_tokens=2500
     )
 
-def ask(question, retriever, llm):
+
+# ══════════════════════════════════════════
+#  دالة البحث والإجابة
+# ══════════════════════════════════════════
+def ask(question: str, retriever, llm):
     docs = retriever.invoke(question)
-    context = "\n\n".join([
-        f"[{d.metadata['source']}]\n{d.page_content}" for d in docs
-    ])
+
+    # بناء السياق مع المصادر بشكل واضح
+    context_parts = []
+    for d in docs:
+        source = d.metadata.get("source", "مصدر غير معروف")
+        context_parts.append(f"[{source}]\n{d.page_content}")
+    context = "\n\n──────────\n\n".join(context_parts)
+
     prompt = PromptTemplate(
         template=PROMPT_TEMPLATE,
         input_variables=["context", "question"]
     )
-    chain = prompt | llm | StrOutputParser()
+    chain  = prompt | llm | StrOutputParser()
     answer = chain.invoke({"context": context, "question": question})
     return answer, docs
 
-# ══════════════════════════════════════════
-#  الواجهة
-# ══════════════════════════════════════════
 
+# ══════════════════════════════════════════
+#  الهيدر
+# ══════════════════════════════════════════
 st.markdown("""
 <div class="header">
-    <div class="header-title">🕌السَّاعِدُ العِلْمِيُّ</div>
+    <div class="header-title">🕌 السَّاعِدُ العِلْمِيُّ</div>
     <div class="header-sub">مساعد علمي متخصص في عقيدة أهل السنة والجماعة</div>
 </div>
 """, unsafe_allow_html=True)
 
+# ── بطاقة الترحيب ──
 st.markdown("""
 <div class="hero">
     <div class="hero-title">اسأل عن أي مسألة عقدية</div>
     <div class="hero-desc">
-        يبحث النظام في كتب أهل السنة الكبار ويجيبك بإجابة علمية موثقة
-        مع ذكر المصدر والصفحة من الكتاب الأصلي
+        يبحث النظام في كتب أهل السنة الكبار ويجيبك بإجابة علمية موثّقة
+        مع ذكر اسم الكتاب ورقم الصفحة من المصدر الأصلي
     </div>
 </div>
 """, unsafe_allow_html=True)
 
+# ── تحميل الموارد ──
 retriever, db = load_retriever()
 llm = load_llm()
 
+# ── الإحصائيات ──
 try:
-    books_count = len([f for f in os.listdir("books") if f.endswith((".pdf", ".docx", ".doc"))]) if os.path.exists("books") else 32
+    books_count  = len([f for f in os.listdir("books") if f.endswith((".pdf", ".docx", ".doc"))]) if os.path.exists("books") else 32
     chunks_count = len(db.get()['ids']) if db else 29128
-except:
-    books_count = 32
+except Exception:
+    books_count  = 32
     chunks_count = 29128
 
 st.markdown(f"""
 <div class="stats-row">
-    <div class="stat-card"><div class="stat-number">{books_count}</div><div class="stat-label">كتب مفهرسة</div></div>
-    <div class="stat-card"><div class="stat-number">+{chunks_count}</div><div class="stat-label">مقطع نصي</div></div>
-    <div class="stat-card"><div class="stat-number">100%</div><div class="stat-label">من المصادر الأصلية</div></div>
+    <div class="stat-card">
+        <div class="stat-number">{books_count}</div>
+        <div class="stat-label">كتاب مفهرس</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">+{chunks_count:,}</div>
+        <div class="stat-label">مقطع نصي</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">١٠٠٪</div>
+        <div class="stat-label">من المصادر الأصلية</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -233,6 +366,10 @@ if retriever is None:
     st.error("⚠️ قاعدة البيانات غير موجودة — شغّل 1_ingest.py أولاً")
     st.stop()
 
+
+# ══════════════════════════════════════════
+#  الأسئلة المقترحة
+# ══════════════════════════════════════════
 ALL_EXAMPLES = [
     "ما معنى توحيد الألوهية؟",
     "ما موقف أهل السنة من صفة الاستواء؟",
@@ -246,6 +383,8 @@ ALL_EXAMPLES = [
     "ما الفرق بين الأشاعرة وأهل السنة؟",
     "ما موقف أهل السنة من الإيمان؟",
     "ما معنى الولاء والبراء؟",
+    "ما دلالة آية الكرسي على صفات الله؟",
+    "ما معنى الأسماء الحسنى وما حكم الإلحاد فيها؟",
 ]
 
 if "examples_shown" not in st.session_state:
@@ -258,7 +397,12 @@ for i, ex in enumerate(st.session_state.examples_shown):
         st.session_state.q = ex
         st.rerun()
 
+
+# ══════════════════════════════════════════
+#  حقل السؤال
+# ══════════════════════════════════════════
 st.markdown('<div class="section-title">🔍 اكتب سؤالك</div>', unsafe_allow_html=True)
+
 question = st.text_input(
     label="",
     value=st.session_state.get("q", ""),
@@ -266,62 +410,103 @@ question = st.text_input(
     key="question_input"
 )
 
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
+col_l, col_m, col_r = st.columns([1, 2, 1])
+with col_m:
     search = st.button("🔍 ابحث في كتب العقيدة", type="primary", use_container_width=True)
 
-if search or (question and question != st.session_state.get("last_q", "") and question.strip()):
+
+# ══════════════════════════════════════════
+#  منطق البحث والعرض
+# ══════════════════════════════════════════
+trigger = search or (
+    question.strip()
+    and question != st.session_state.get("last_q", "")
+)
+
+if trigger:
     if not question.strip():
         st.warning("⚠️ الرجاء كتابة سؤال أولاً")
     else:
         st.session_state.last_q = question
+        st.session_state.pop("q", None)  # مسح الاقتراح بعد الاستخدام
+
         with st.spinner("⏳ جاري البحث في كتب أهل السنة..."):
             answer, docs = ask(question, retriever, llm)
 
+        # ── الإجابة ──────────────────────────────────────────
         st.markdown('<div class="section-title">📖 الإجابة</div>', unsafe_allow_html=True)
-        answer_html = re.sub(r'### (.+)', r'<h3 style="color:#1a3c2e;">\1</h3>', answer)
-        answer_html = re.sub(r'## (.+)', r'<h2 style="color:#1a3c2e;font-size:1.3rem;">\1</h2>', answer_html)
-        answer_html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', answer_html)
-        answer_html = answer_html.replace('\n', '<br>')
-        st.markdown(f'<div class="answer-box"><div id="answerText">{answer_html}</div></div>', unsafe_allow_html=True)
 
-        with st.expander("📋 انسخ الإجابة"):
+        # تحويل Markdown بسيط → HTML
+        answer_html = re.sub(r'### (.+)',  r'<h3 style="color:var(--green-dark);">\1</h3>', answer)
+        answer_html = re.sub(r'## (.+)',   r'<h2 style="color:var(--green-dark);font-size:1.2rem;">\1</h2>', answer_html)
+        answer_html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', answer_html)
+        # إبراز المراجع [كتاب، ص.X] بلون مميز
+        answer_html = re.sub(
+            r'\[([^\]]+؟?,?\s*ص\.[\d\u0660-\u0669]+)\]',
+            r'<span style="color:var(--green-mid);font-weight:700;font-size:0.88em;">[\1]</span>',
+            answer_html
+        )
+        answer_html = answer_html.replace('\n', '<br>')
+
+        st.markdown(
+            f'<div class="answer-box">{answer_html}</div>',
+            unsafe_allow_html=True
+        )
+
+        # ── نسخ الإجابة ──────────────────────────────────────
+        with st.expander("📋 انسخ نص الإجابة كاملاً"):
             st.code(answer, language=None)
 
-        st.markdown('<div class="section-title">📚 النصوص المصدرية</div>', unsafe_allow_html=True)
-        seen = set()
+        # ── المصادر ───────────────────────────────────────────
+        st.markdown(
+            '<div class="section-title">📚 النصوص المصدرية المستخدمة في الإجابة</div>',
+            unsafe_allow_html=True
+        )
+
+        seen       = set()
+        unique_docs = []
         for doc in docs:
-            key = doc.metadata["source"]
-            if key in seen:
-                continue
-            seen.add(key)
-            st.markdown(
-                f'<details style="background:#f1f8f4;border:1px solid #a8d5b5;'
-                f'border-radius:10px;padding:10px 16px;margin-bottom:8px;">'
-                f'<summary style="color:#1a3c2e;font-weight:700;cursor:pointer;'
-                f'font-family:Tajawal,sans-serif;list-style:none;text-align:right;">'
-                f'📖 {doc.metadata["source"]}</summary>'
-                f'<div style="direction:rtl;text-align:right;font-family:Tajawal,sans-serif;'
-                f'font-size:0.95rem;line-height:2;color:#111;padding:10px;">'
-                f'<b style="color:#1a3c2e;">{doc.metadata["book"]}</b><br><br>'
-                f'{doc.page_content}</div>'
-                f'</details>',
-                unsafe_allow_html=True
-            )
+            key = doc.metadata.get("source", "")
+            if key not in seen:
+                seen.add(key)
+                unique_docs.append(doc)
+
+        if unique_docs:
+            for doc in unique_docs:
+                book   = doc.metadata.get("book",   "كتاب غير معروف")
+                page   = doc.metadata.get("page",   "—")
+                source = doc.metadata.get("source", book)
+
+                with st.expander(f"📖  {source}"):
+                    st.markdown(
+                        f'<div class="source-content">'
+                        f'<div class="source-book-name">'
+                        f'{book}'
+                        f'<span class="source-page-badge">ص. {page}</span>'
+                        f'</div>'
+                        f'{doc.page_content}'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+        else:
+            st.info("لم يُعثر على نصوص مصدرية مرتبطة بهذا السؤال في قاعدة البيانات.")
+
+
+# ══════════════════════════════════════════
+#  الفوتر
+# ══════════════════════════════════════════
 st.markdown("""
-<div style="text-align:center;padding:10px;direction:rtl;">
-    <span style="color:#777;font-size:0.85rem;">للملاحظات والاستفسارات: </span>
+<div style="text-align:center;padding:16px 0 4px;direction:rtl;">
+    <span style="color:var(--text-hint);font-size:0.85rem;">للملاحظات والاستفسارات: </span>
     <a href="https://t.me/steripro" target="_blank"
        style="background:#229ED9;color:white;text-decoration:none;
-              padding:5px 14px;border-radius:50px;margin:4px;
+              padding:5px 16px;border-radius:50px;margin:4px;
               display:inline-block;font-family:Tajawal,sans-serif;
               font-size:0.85rem;font-weight:700;">✈️ تيليجرام</a>
 </div>
-""", unsafe_allow_html=True)
-st.markdown("""
-<div style="text-align:center;padding:20px 0 5px 0;">
-    <span style="color:rgba(45,106,79,0.3);font-size:0.75rem;font-family:Tajawal,sans-serif;">
-        نسخة تجريبية — السَّاعِدُ العِلْمِيُّ
+<div style="text-align:center;padding:6px 0 20px;">
+    <span style="color:var(--text-hint);font-size:0.75rem;opacity:0.6;">
+        نسخة تجريبية — السَّاعِدُ العِلْمِيُّ
     </span>
 </div>
 """, unsafe_allow_html=True)
