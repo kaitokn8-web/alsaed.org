@@ -439,14 +439,17 @@ except Exception:
     books_count  = 32
     chunks_count = 29128
 
+def to_arabic(n):
+    return str(n).translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩'))
+
 st.markdown(f"""
 <div class="stats-row">
     <div class="stat-card">
-        <div class="stat-number">{books_count}</div>
+        <div class="stat-number">{to_arabic(books_count)}</div>
         <div class="stat-label">كتاب مفهرس</div>
     </div>
     <div class="stat-card">
-        <div class="stat-number">+{chunks_count:,}</div>
+        <div class="stat-number">+{to_arabic(chunks_count)}</div>
         <div class="stat-label">مقطع نصي</div>
     </div>
     <div class="stat-card">
@@ -482,12 +485,12 @@ ALL_EXAMPLES = [
 ]
 
 if "examples_shown" not in st.session_state:
-    st.session_state.examples_shown = random.sample(ALL_EXAMPLES, 6)
+    st.session_state.examples_shown = random.sample(ALL_EXAMPLES, 3)
 
 st.markdown('<div class="section-title">💡 أسئلة مقترحة</div>', unsafe_allow_html=True)
 cols = st.columns(3)
 for i, ex in enumerate(st.session_state.examples_shown):
-    if cols[i % 3].button(ex, key=f"ex_{i}"):
+    if cols[i].button(ex, key=f"ex_{i}"):
         st.session_state.q = ex
         st.rerun()
 
