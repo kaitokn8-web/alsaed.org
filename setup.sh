@@ -5,3 +5,6 @@ headless = true\n\
 port = $PORT\n\
 enableCORS = false\n\
 " > ~/.streamlit/config.toml
+ 
+python 1_ingest.py
+ 
