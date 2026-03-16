@@ -5,9 +5,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
@@ -237,29 +236,30 @@ textarea, input[type="text"] {
 # ══════════════════════════════════════════
 #  الـ Prompt
 # ══════════════════════════════════════════
-PROMPT_TEMPLATE = """أنت "السَّاعِدُ العِلْمِيُّ"، نظام ذكاء اصطناعي متخصص حصراً في علم العقيدة الإسلامية وفق منهج أهل السنة والجماعة على فهم السلف الصالح.
+def build_prompt(context: str, question: str) -> str:
+    return f"""أنت "السَّاعِدُ العِلْمِيُّ"، نظام ذكاء اصطناعي متخصص حصراً في علم العقيدة الإسلامية وفق منهج أهل السنة والجماعة على فهم السلف الصالح.
 
-══ النصوص المرجعية المتاحة ══
+فيما يلي النصوص المرجعية المستخرجة من كتب أهل السنة — استند إليها في إجابتك:
+
 {context}
-══════════════════════════════
+
+---
 
 السؤال: {question}
 
-══ منهج الإجابة (اتبع هذا الترتيب) ══
+منهج الإجابة (اتبع هذا الترتيب):
 ١. تعريف المسألة بإيجاز
 ٢. الأصل في القرآن والسنة مع ذكر النص إن أمكن
-٣. أقوال علماء أهل السنة مقتبسةً من النصوص أعلاه، وكل قول يتبعه مباشرةً: [اسم الكتاب، ص.رقم]
+٣. أقوال علماء أهل السنة مقتبسة من النصوص أعلاه، وكل قول يتبعه مباشرة: [اسم الكتاب، ص.رقم]
 ٤. شرح المسألة وبيان معناها
-٥. ذكر الأقوال المخالفة إن وُجدت مع موقف أهل السنة منها [مع مصدر من النصوص أعلاه]
-٦. خلاصة تلخّص مذهب أهل السنة
+٥. ذكر الأقوال المخالفة إن وجدت مع موقف أهل السنة منها
+٦. خلاصة تلخص مذهب أهل السنة
 
-══ قواعد إلزامية لا استثناء فيها ══
-• كل معلومة أو قول تنقله من النصوص المتاحة يجب أن يعقبه مباشرةً: [اسم الكتاب، ص.رقم] — هذا ليس اختيارياً
-• لا تذكر قولاً لعالم إلا إذا كان موجوداً في النصوص أعلاه
-• لا تخترع مصادر أو صفحات
-• إذا لم تجد في النصوص ما يكفي لتوثيق نقطة معينة، صرّح: "لم يرد في المصادر المتاحة نص صريح على ذلك"
-• لا تخلط بين منهج أهل السنة والمذاهب الكلامية (الأشاعرة، المعتزلة...)
-• اكتب بالعربية الفصحى بأسلوب علمي رصين
+قواعد إلزامية:
+- كل قول تنقله من النصوص أعلاه يعقبه مباشرة: [اسم الكتاب، ص.رقم]
+- لا تذكر قولاً لعالم إلا إذا كان موجوداً في النصوص المرفقة
+- لا تخترع مصادر أو صفحات
+- اكتب بالعربية الفصحى بأسلوب علمي رصين
 """
 
 
@@ -296,19 +296,22 @@ def load_llm():
 def ask(question: str, retriever, llm):
     docs = retriever.invoke(question)
 
-    # بناء السياق مع المصادر بشكل واضح
-    context_parts = []
-    for d in docs:
-        source = d.metadata.get("source", "مصدر غير معروف")
-        context_parts.append(f"[{source}]\n{d.page_content}")
-    context = "\n\n──────────\n\n".join(context_parts)
+    if not docs:
+        return "لم يُعثر على نصوص ذات صلة في قاعدة البيانات.", []
 
-    prompt = PromptTemplate(
-        template=PROMPT_TEMPLATE,
-        input_variables=["context", "question"]
-    )
-    chain  = prompt | llm | StrOutputParser()
-    answer = chain.invoke({"context": context, "question": question})
+    # بناء السياق
+    context = "\n\n".join([
+        f"[{d.metadata.get('source', '؟')}]\n{d.page_content}"
+        for d in docs
+    ])
+
+    # إرسال الـ prompt مباشرة بدون PromptTemplate
+    full_prompt = build_prompt(context, question)
+
+    from langchain_core.messages import HumanMessage
+    response = llm.invoke([HumanMessage(content=full_prompt)])
+    answer = response.content if hasattr(response, "content") else str(response)
+
     return answer, docs
 
 
