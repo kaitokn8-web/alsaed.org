@@ -1,4 +1,4 @@
-
+vectorstore/
 books/
 .env
 __pycache__/
