@@ -419,10 +419,9 @@ st.markdown("""
 # ── بطاقة الترحيب ──
 st.markdown("""
 <div class="hero">
-    <div class="hero-title">اسأل عن أي مسألة عقدية</div>
+    <div class="hero-title">اسأل عن أي مسألة علمية</div>
     <div class="hero-desc">
-        يبحث النظام في كتب أهل السنة الكبار ويجيبك بإجابة علمية موثّقة
-        مع ذكر اسم الكتاب ورقم الصفحة من المصدر الأصلي
+    مساعد علمي يبحث في كتب أهل السنة ويجيبك إجابة موثقة
     </div>
 </div>
 """, unsafe_allow_html=True)
