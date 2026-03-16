@@ -1,1 +1,1 @@
-web: sh setup.sh && streamlit run 2_app.py --server.port=$PORT --server.address=0.0.0.0
+web: sh setup.sh && py -3.11 1_ingest.py && streamlit run 2_app.py --server.port=$PORT --server.address=0.0.0.0
