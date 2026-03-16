@@ -268,11 +268,102 @@ def build_prompt(context: str, question: str) -> str:
 # ══════════════════════════════════════════
 @st.cache_resource(show_spinner=False)
 def load_retriever():
-    if not os.path.exists("vectorstore"):
-        return None, None
+    import re as _re, shutil
+    from docx import Document as DocxDocument
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from langchain_core.documents import Document as LCDocument
+
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
+
+    needs_build = (
+        not os.path.exists("vectorstore")
+        or not os.path.exists(os.path.join("vectorstore", "chroma.sqlite3"))
+    )
+
+    if needs_build and os.path.exists("books"):
+        BOOK_NAMES = {
+            "tahawiyya321.docx":        "العقيدة الطحاوية — الطحاوي (ت.321)",
+            "tahawiyya792_1.docx":      "شرح الطحاوية — ابن أبي العز (ت.792) ج.1",
+            "tahawiyya792_2.docx":      "شرح الطحاوية — ابن أبي العز (ت.792) ج.2",
+            "tahawiyya792_3.docx":      "شرح الطحاوية — ابن أبي العز (ت.792) ج.3",
+            "jawab_sahih_728_1.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.1",
+            "jawab_sahih_728_2.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.2",
+            "jawab_sahih_728_3.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.3",
+            "jawab_sahih_728_4.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.4",
+            "jawab_sahih_728_5.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.5",
+            "jawab_sahih_728_6.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.6",
+            "jawab_sahih_728_7.docx":   "الجواب الصحيح — ابن تيمية (ت.728) ج.7",
+            "itiqad_lalkai_418_1.docx": "شرح أصول اعتقاد أهل السنة — اللالكائي (ت.418) ج.1",
+            "itiqad_lalkai_418_2.docx": "شرح أصول اعتقاد أهل السنة — اللالكائي (ت.418) ج.2",
+            "itiqad_lalkai_418_3.docx": "شرح أصول اعتقاد أهل السنة — اللالكائي (ت.418) ج.3",
+            "itiqad_lalkai_418_4.docx": "شرح أصول اعتقاد أهل السنة — اللالكائي (ت.418) ج.4",
+            "itiqad_lalkai_418_5.docx": "شرح أصول اعتقاد أهل السنة — اللالكائي (ت.418) ج.5",
+            "itiqad_lalkai_418_6.docx": "كرامات الأولياء — اللالكائي (ت.418) ج.6",
+            "dar_taarez_728_1.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.1",
+            "dar_taarez_728_2.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.2",
+            "dar_taarez_728_3.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.3",
+            "dar_taarez_728_4.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.4",
+            "dar_taarez_728_5.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.5",
+            "dar_taarez_728_6.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.6",
+            "dar_taarez_728_7.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.7",
+            "dar_taarez_728_8.docx":    "درء تعارض العقل والنقل — ابن تيمية (ت.728) ج.8",
+            "radd_shadhili_728.docx":     "الرد على الشاذلي في حزبيه — ابن تيمية (ت.728)",
+            "sharh_asfahaniyya_728.docx": "شرح العقيدة الأصفهانية — ابن تيمية (ت.728)",
+            "ubudiyya_728.docx":          "العبودية — ابن تيمية (ت.728)",
+            "nubuwwat_728_1.docx":    "النبوات — ابن تيمية (ت.728) ج.1",
+            "nubuwwat_728_2.docx":    "النبوات — ابن تيمية (ت.728) ج.2",
+            "nubuwwat_728_3.docx":    "النبوات — ابن تيمية (ت.728) ج.3",
+            "nubuwwat_728_4.docx":    "النبوات — ابن تيمية (ت.728) ج.4",
+        }
+        PATTERNS = [
+            _re.compile(r'\(([\d\u0660-\u0669]+)/[\d\u0660-\u0669]+\)'),
+            _re.compile(r'\[ص[:\s]*([\d\u0660-\u0669]+)\]'),
+            _re.compile(r'ص\.([\d\u0660-\u0669]+)'),
+        ]
+
+        def read_docx(path, book_name):
+            doc = DocxDocument(path)
+            paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+            current_page = "1"
+            result = []
+            for i in range(0, len(paragraphs), 15):
+                text = "\n".join(paragraphs[i:i+15])
+                for pat in PATTERNS:
+                    m = pat.search(text)
+                    if m:
+                        current_page = m.group(1)
+                        break
+                if len(text) >= 30:
+                    result.append(LCDocument(
+                        page_content=text,
+                        metadata={"book": book_name, "page": current_page,
+                                  "source": f"{book_name} ص.{current_page}"}
+                    ))
+            return result
+
+        all_docs = []
+        for filename, name in BOOK_NAMES.items():
+            path = os.path.join("books", filename)
+            if os.path.exists(path):
+                try:
+                    all_docs.extend(read_docx(path, name))
+                except Exception:
+                    pass
+
+        if all_docs:
+            chunks = RecursiveCharacterTextSplitter(
+                chunk_size=600, chunk_overlap=80,
+                separators=["\n\n", "\n", ".", " "]
+            ).split_documents(all_docs)
+            if os.path.exists("vectorstore"):
+                shutil.rmtree("vectorstore")
+            Chroma.from_documents(
+                documents=chunks, embedding=embeddings,
+                persist_directory="vectorstore"
+            )
+
     db = Chroma(persist_directory="vectorstore", embedding_function=embeddings)
     retriever = db.as_retriever(
         search_type="mmr",
