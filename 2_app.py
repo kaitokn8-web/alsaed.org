@@ -157,7 +157,7 @@ def load_retriever():
     if not os.path.exists("vectorstore"):
         return None, None
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
     db = Chroma(persist_directory="vectorstore", embedding_function=embeddings)
     retriever = db.as_retriever(

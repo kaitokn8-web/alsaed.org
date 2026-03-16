@@ -106,7 +106,7 @@ def build():
 
     print("\n⏳ جاري بناء قاعدة البيانات...")
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
     Chroma.from_documents(
         documents=chunks,
