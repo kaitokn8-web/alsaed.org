@@ -152,11 +152,6 @@ def build():
         model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
 
-    # حذف القاعدة القديمة إن وُجدت لإعادة البناء نظيفاً
-    if os.path.exists("vectorstore"):
-        shutil.rmtree("vectorstore")
-        print("   ♻  تم حذف القاعدة القديمة")
-
     Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
