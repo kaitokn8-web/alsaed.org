@@ -435,20 +435,27 @@ def ask(question: str, retriever, llm):
     if not docs:
         return "لم يُعثر على نصوص ذات صلة في قاعدة البيانات.", []
 
+    # ── تنويع المصادر: حد أقصى 2 مقطع لكل كتاب ──
+    seen_books = {}
+    diverse_docs = []
+    for doc in docs:
+        book = doc.metadata.get("book", "")
+        count = seen_books.get(book, 0)
+        if count < 2:
+            diverse_docs.append(doc)
+            seen_books[book] = count + 1
+
     # بناء السياق
     context = "\n\n".join([
         f"[{d.metadata.get('source', '؟')}]\n{d.page_content}"
-        for d in docs
+        for d in diverse_docs
     ])
 
-    # إرسال الـ prompt مباشرة بدون PromptTemplate
     full_prompt = build_prompt(context, question)
-
-    from langchain_core.messages import HumanMessage
     response = llm.invoke([HumanMessage(content=full_prompt)])
     answer = response.content if hasattr(response, "content") else str(response)
 
-    return answer, docs
+    return answer, diverse_docs
 
 
 # ══════════════════════════════════════════
@@ -497,6 +504,7 @@ st.markdown(f"""
         <div class="stat-label">مقطع نصي</div>
     </div>
     <div class="stat-card">
+        <div class="stat-number">١٠٠٪</div>
         <div class="stat-label">من المصادر الأصلية</div>
     </div>
 </div>
@@ -568,7 +576,7 @@ if trigger:
         st.warning("⚠️ الرجاء كتابة سؤال أولاً")
     else:
         st.session_state.last_q = question
-        st.session_state.pop("q", None)  # مسح الاقتراح بعد الاستخدام
+        st.session_state.pop("q", None)
 
         with st.spinner("⏳ جاري البحث في كتب أهل السنة..."):
             answer, docs = ask(question, retriever, llm)
@@ -576,11 +584,9 @@ if trigger:
         # ── الإجابة ──────────────────────────────────────────
         st.markdown('<div class="section-title">📖 الإجابة</div>', unsafe_allow_html=True)
 
-        # تحويل Markdown بسيط → HTML
         answer_html = re.sub(r'### (.+)',  r'<h3 style="color:var(--green-dark);">\1</h3>', answer)
         answer_html = re.sub(r'## (.+)',   r'<h2 style="color:var(--green-dark);font-size:1.2rem;">\1</h2>', answer_html)
         answer_html = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', answer_html)
-        # إبراز المراجع [كتاب، ص.X] بلون مميز
         answer_html = re.sub(
             r'\[([^\]]+؟?,?\s*ص\.[\d\u0660-\u0669]+)\]',
             r'<span style="color:var(--green-mid);font-weight:700;font-size:0.88em;">[\1]</span>',
@@ -593,7 +599,6 @@ if trigger:
             unsafe_allow_html=True
         )
 
-        # ── نسخ الإجابة ──────────────────────────────────────
         with st.expander("📋 انسخ نص الإجابة كاملاً"):
             st.code(answer, language=None)
 
