@@ -409,10 +409,10 @@ def load_retriever():
             )
 
     db = Chroma(persist_directory="vectorstore", embedding_function=embeddings)
-retriever = db.as_retriever(
-    search_type="mmr",
-    search_kwargs={"k": 20, "fetch_k": 100, "lambda_mult": 0.5}
-            )
+    retriever = db.as_retriever(
+        search_type="mmr",
+        search_kwargs={"k": 20, "fetch_k": 100, "lambda_mult": 0.5}
+    )
 
     return retriever, db
 
