@@ -1,4 +1,4 @@
-import os, re, random
+import os, re, random, math
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
-EMBEDDING_MODEL = "intfloat/multilingual-e5-large"
+EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 st.set_page_config(page_title="السَّاعِدُ العِلْمِيُّ", page_icon="🕌", layout="wide", initial_sidebar_state="collapsed")
 
@@ -161,10 +161,7 @@ def load_db():
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain_core.documents import Document as LCDocument
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name=EMBEDDING_MODEL,
-        encode_kwargs={"normalize_embeddings": True}
-    )
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
     needs_build = (
         not os.path.exists("vectorstore")
@@ -217,7 +214,20 @@ def load_db():
             Chroma.from_documents(documents=chunks, embedding=embeddings, persist_directory="vectorstore")
 
     db = Chroma(persist_directory="vectorstore", embedding_function=embeddings)
-    return db, embeddings
+    return db
+
+
+@st.cache_resource(show_spinner=False)
+def load_bm25(db):
+    """بناء فهرس BM25 من محتوى قاعدة البيانات"""
+    from rank_bm25 import BM25Okapi
+    data = db.get(include=["documents", "metadatas"])
+    corpus = data["documents"]
+    metadatas = data["metadatas"]
+    # تقطيع بسيط للكلمات
+    tokenized = [doc.split() for doc in corpus]
+    bm25 = BM25Okapi(tokenized)
+    return bm25, corpus, metadatas
 
 
 @st.cache_resource(show_spinner=False)
@@ -229,31 +239,60 @@ def load_llm():
     )
 
 
-def search_all_books(question, db, top_books=15):
+def hybrid_search(question, db, bm25, corpus, metadatas, top_k=15, k_rrf=60):
     """
-    يبحث في كل كتاب على حدة — يضمن تمثيل كل كتاب بالتساوي.
+    Hybrid Search = Embeddings + BM25 مدموجان بـ Reciprocal Rank Fusion
+    يضمن ظهور الكتاب عند ذكر اسمه أو مؤلفه (BM25)
+    ويضمن الدقة الدلالية (Embeddings)
     """
-    all_data = db.get(include=["metadatas"])
-    books = list({m["book"] for m in all_data["metadatas"] if "book" in m})
+    # ── BM25 ──
+    tokens = question.split()
+    bm25_scores = bm25.get_scores(tokens)
+    bm25_ranked = sorted(range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True)
 
-    results_with_scores = []
-    for book in books:
-        try:
-            docs = db.similarity_search_with_score(
-                question, k=1,
-                filter={"book": book}
-            )
-            if docs:
-                results_with_scores.append(docs[0])
-        except Exception:
-            pass
+    # ── Embeddings ──
+    embed_results = db.similarity_search_with_score(question, k=200)
+    embed_ranked = [doc for doc, _ in embed_results]
 
-    results_with_scores.sort(key=lambda x: x[1])
-    return [doc for doc, score in results_with_scores[:top_books]]
+    # ── RRF: دمج الترتيبين ──
+    rrf_scores = {}
+
+    for rank, idx in enumerate(bm25_ranked[:200]):
+        key = corpus[idx][:80]
+        rrf_scores[key] = rrf_scores.get(key, 0) + 1 / (k_rrf + rank + 1)
+
+    for rank, doc in enumerate(embed_ranked):
+        key = doc.page_content[:80]
+        rrf_scores[key] = rrf_scores.get(key, 0) + 1 / (k_rrf + rank + 1)
+
+    # ── بناء النتائج النهائية ──
+    # خريطة من المحتوى إلى الـ metadata
+    content_to_meta = {corpus[i][:80]: metadatas[i] for i in range(len(corpus))}
+    content_to_full = {corpus[i][:80]: corpus[i] for i in range(len(corpus))}
+
+    sorted_keys = sorted(rrf_scores, key=lambda k: rrf_scores[k], reverse=True)
+
+    from langchain_core.documents import Document as LCDoc
+    results = []
+    seen_books = {}
+    for key in sorted_keys:
+        if key not in content_to_meta:
+            continue
+        meta = content_to_meta[key]
+        book = meta.get("book", "")
+        # حد أقصى مقطعان لكل كتاب
+        if seen_books.get(book, 0) >= 2:
+            continue
+        seen_books[book] = seen_books.get(book, 0) + 1
+        results.append(LCDoc(page_content=content_to_full[key], metadata=meta))
+        if len(results) >= top_k:
+            break
+
+    return results
 
 
-def ask(question, db, llm):
-    docs = search_all_books(question, db, top_books=15)
+def ask(question, db, bm25, corpus, metadatas, llm):
+    docs = hybrid_search(question, db, bm25, corpus, metadatas, top_k=15)
     if not docs:
         return "لم يُعثر على نصوص ذات صلة في قاعدة البيانات.", []
 
@@ -265,6 +304,7 @@ def ask(question, db, llm):
     return answer, docs
 
 
+# ══ الهيدر ══
 st.markdown("""
 <div class="header">
     <div class="header-title">🕌 السَّاعِدُ العِلْمِيُّ</div>
@@ -277,7 +317,8 @@ st.markdown("""
     <div class="hero-desc">مساعد علمي يبحث في كتب أهل السنة ويجيبك إجابة موثقة</div>
 </div>""", unsafe_allow_html=True)
 
-db, embeddings = load_db()
+db = load_db()
+bm25, corpus, metadatas = load_bm25(db)
 llm = load_llm()
 
 try:
@@ -338,7 +379,7 @@ if trigger:
         st.session_state.pop("q", None)
 
         with st.spinner("⏳ جاري البحث في كتب أهل السنة..."):
-            answer, docs = ask(question, db, llm)
+            answer, docs = ask(question, db, bm25, corpus, metadatas, llm)
 
         st.markdown('<div class="section-title">📖 الإجابة</div>', unsafe_allow_html=True)
 
