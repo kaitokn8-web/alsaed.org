@@ -228,10 +228,26 @@ def load_llm():
 
 def search_all_books(question, db, top_books=15):
     """
-    الحل الجذري: يأخذ أفضل مقطع من كل كتاب على حدة.
-    يضمن تمثيل كل كتاب بالتساوي بغض النظر عن حجمه.
-    يعمل مع مئات الكتب بكفاءة.
+    يبحث في كل كتاب على حدة بفلتر الـ metadata.
+    يضمن تمثيل كل كتاب بالتساوي مع مئات الكتب.
     """
+    all_data = db.get(include=["metadatas"])
+    books = list({m["book"] for m in all_data["metadatas"] if "book" in m})
+
+    results_with_scores = []
+    for book in books:
+        try:
+            docs = db.similarity_search_with_score(
+                question, k=1,
+                filter={"book": book}
+            )
+            if docs:
+                results_with_scores.append(docs[0])
+        except Exception:
+            pass
+
+    results_with_scores.sort(key=lambda x: x[1])
+    return [doc for doc, score in results_with_scores[:top_books]]
     raw = db.similarity_search_with_score(question, k=300)
 
     best_per_book = {}
