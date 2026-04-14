@@ -232,7 +232,7 @@ def search_all_books(question, db, top_books=15):
     يضمن تمثيل كل كتاب بالتساوي بغض النظر عن حجمه.
     يعمل مع مئات الكتب بكفاءة.
     """
-    raw = db.similarity_search_with_score(question, k=500)
+    raw = db.similarity_search_with_score(question, k=300)
 
     best_per_book = {}
     for doc, score in raw:
