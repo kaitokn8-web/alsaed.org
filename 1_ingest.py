@@ -89,37 +89,8 @@ BOOK_NAMES = {
     "hidayat_hayara_751.docx":              "هداية الحيارى في أجوبة اليهود والنصارى — ابن القيم (ت.751)",
 }
 
-# ── الكتب الصغيرة التي تحتاج تضخيماً (أقل من 50 مقطعاً) ──
-# نضاعف مقاطعها 4 مرات لتظهر في نتائج البحث بالتساوي مع الكتب الكبيرة
-BOOST_BOOKS = {
-    "mustalah_aqaid_hamad.docx",        # 37 مقطع
-    "athar_marwiyya_tamimi.docx",       # 9 مقاطع
-    "maqala_tateel_jad_tamimi.docx",    # 24 مقطع
-    "qawl_falasifa_yoonan_khalaf.docx", # 5 مقاطع
-    "risala_akmaliyya_728.docx",        # 10 مقاطع
-    "risala_quran_ghayr_makhlooq_285.docx", # 4 مقاطع
-    "tahawiyya321.docx",                # 4 مقاطع
-    "aqida_khallal_241.docx",           # 4 مقاطع
-    "tafsir_asma_husna_311.docx",       # 6 مقاطع
-    "lamaat_itiqad_620.docx",           # 6 مقاطع
-    "tahrim_nazar_620.docx",            # 6 مقاطع
-    "asma_sifat_1421.docx",             # 7 مقاطع
-    "itiqad_ibn_abi_yala_526.docx",     # 7 مقاطع
-    "nuniyya_qahtani_378.docx",         # 6 مقاطع
-    "risala_thaghr_ashari_324.docx",    # 26 مقطع
-    "itiqad_salaf_huruf_676.docx",      # 12 مقطع
-    "hayda_kinani_240.docx",            # 12 مقطع
-    "kitab_iman_224.docx",              # 13 مقطع
-    "fatwa_hamawiyya_728.docx",         # 18 مقطع
-    "risala_tadmuriyya_728.docx",       # 19 مقطع
-    "ibanah_ashari_324.docx",           # 33 مقطع
-    "fadaih_batiniyya_505.docx",        # 31 مقطع
-    "iqtisad_itiqad_600.docx",          # 32 مقطع
-    "tanbih_radd_377.docx",             # 25 مقطع
-    "radd_jahmiyya_241.docx",           # 26 مقطع
-}
-
-BOOST_FACTOR = 4  # عدد مرات التضخيم للكتب الصغيرة
+# النموذج الجديد — أقوى في العربية
+EMBEDDING_MODEL = "intfloat/multilingual-e5-large"
 
 
 def read_docx(path, book_name):
@@ -128,18 +99,15 @@ def read_docx(path, book_name):
         re.compile(r'\[ص[:\s]*([\d\u0660-\u0669]+)\]'),
         re.compile(r'ص\.([\d\u0660-\u0669]+)'),
     ]
-
     doc          = DocxDocument(path)
     paragraphs   = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
     current_page = "1"
     page_counter = 1
     result       = []
-
     PARA_PER_CHUNK = 15
     for i in range(0, len(paragraphs), PARA_PER_CHUNK):
         group = paragraphs[i : i + PARA_PER_CHUNK]
         text  = "\n".join(group)
-
         found = False
         for pat in PATTERNS:
             m = pat.search(text)
@@ -147,24 +115,17 @@ def read_docx(path, book_name):
                 current_page = m.group(1)
                 found = True
                 break
-
         if not found:
             page_counter += 1
             if current_page == "1":
                 current_page = str(page_counter)
-
         if len(text) < 30:
             continue
-
         result.append(Document(
             page_content=text,
-            metadata={
-                "book":   book_name,
-                "page":   current_page,
-                "source": f"{book_name} ص.{current_page}"
-            }
+            metadata={"book": book_name, "page": current_page,
+                      "source": f"{book_name} ص.{current_page}"}
         ))
-
     print(f"  ✓ {book_name}: {len(result)} مقطع")
     return result
 
@@ -172,6 +133,7 @@ def read_docx(path, book_name):
 def build():
     print("=" * 60)
     print("📚 السَّاعِدُ العِلْمِيُّ — بناء قاعدة البيانات")
+    print(f"   النموذج: {EMBEDDING_MODEL}")
     print("=" * 60)
 
     print("\n📖 جاري قراءة الكتب...\n")
@@ -184,10 +146,6 @@ def build():
             continue
         try:
             docs = read_docx(path, name)
-            # تضخيم الكتب الصغيرة
-            if filename in BOOST_BOOKS:
-                docs = docs * BOOST_FACTOR
-                print(f"  🔼 تضخيم {name}: {len(docs)} مقطع بعد التضخيم")
             all_docs.extend(docs)
         except Exception as e:
             print(f"  ✗  خطأ في {filename}: {e}")
@@ -200,19 +158,20 @@ def build():
 
     print("\n✂  جاري تقطيع النصوص...")
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=600,
-        chunk_overlap=80,
+        chunk_size=600, chunk_overlap=80,
         separators=["\n\n", "\n", ".", " "]
     )
     chunks = splitter.split_documents(all_docs)
     print(f"✂  تم التقطيع إلى {len(chunks)} مقطع")
 
-    print("\n⏳ جاري بناء قاعدة البيانات المتجهة...")
-    print("   (هذا قد يأخذ عدة دقائق أول مرة)")
-
+    print("\n⏳ جاري تحميل نموذج الـ Embeddings...")
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        model_name=EMBEDDING_MODEL,
+        encode_kwargs={"normalize_embeddings": True}
     )
+
+    print("⏳ جاري بناء قاعدة البيانات المتجهة...")
+    print("   (هذا قد يأخذ عدة دقائق)")
 
     if os.path.exists("vectorstore"):
         shutil.rmtree("vectorstore")

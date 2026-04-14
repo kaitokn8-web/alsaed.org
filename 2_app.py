@@ -8,6 +8,8 @@ from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
+EMBEDDING_MODEL = "intfloat/multilingual-e5-large"
+
 st.set_page_config(page_title="السَّاعِدُ العِلْمِيُّ", page_icon="🕌", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""<style>
@@ -160,7 +162,8 @@ def load_db():
     from langchain_core.documents import Document as LCDocument
 
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        model_name=EMBEDDING_MODEL,
+        encode_kwargs={"normalize_embeddings": True}
     )
 
     needs_build = (
@@ -228,8 +231,7 @@ def load_llm():
 
 def search_all_books(question, db, top_books=15):
     """
-    يبحث في كل كتاب على حدة بفلتر الـ metadata.
-    يضمن تمثيل كل كتاب بالتساوي مع مئات الكتب.
+    يبحث في كل كتاب على حدة — يضمن تمثيل كل كتاب بالتساوي.
     """
     all_data = db.get(include=["metadatas"])
     books = list({m["book"] for m in all_data["metadatas"] if "book" in m})
@@ -248,16 +250,6 @@ def search_all_books(question, db, top_books=15):
 
     results_with_scores.sort(key=lambda x: x[1])
     return [doc for doc, score in results_with_scores[:top_books]]
-    raw = db.similarity_search_with_score(question, k=300)
-
-    best_per_book = {}
-    for doc, score in raw:
-        book = doc.metadata.get("book", "")
-        if book not in best_per_book or score < best_per_book[book][1]:
-            best_per_book[book] = (doc, score)
-
-    sorted_books = sorted(best_per_book.values(), key=lambda x: x[1])
-    return [doc for doc, score in sorted_books[:top_books]]
 
 
 def ask(question, db, llm):
@@ -273,7 +265,6 @@ def ask(question, db, llm):
     return answer, docs
 
 
-# ══ الهيدر ══
 st.markdown("""
 <div class="header">
     <div class="header-title">🕌 السَّاعِدُ العِلْمِيُّ</div>
